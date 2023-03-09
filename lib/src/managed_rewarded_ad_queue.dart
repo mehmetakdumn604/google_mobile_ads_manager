@@ -62,10 +62,7 @@ class ManagedRewardedAdQueue {
   Future<void> _initializeRewardedAdQueue() async {
     try {
       await Future.wait(
-        <Future>[
-          for (int i = 0; i <= _rewardedAdInitializer.count; i++)
-            _addRewardedAd()
-        ],
+        <Future>[for (int i = 0; i <= _rewardedAdInitializer.count; i++) _addRewardedAd()],
       );
     } catch (e) {
       /// Rethrowing the error, to be caught by an enclosing try-catch block
@@ -79,11 +76,7 @@ class ManagedRewardedAdQueue {
   /// if the ad is not shown (due to [showChance])
   void showRewardedAd({
     double showChance = 1.0,
-    required void Function(
-      AdWithoutView ad,
-      RewardItem reward,
-    )
-        onUserEarnedReward,
+    void Function()? callback,
   }) {
     assert(
       showChance >= 0.0 && showChance <= 1.0,
@@ -99,39 +92,35 @@ class ManagedRewardedAdQueue {
       /// exhausted before refills are completed
       if (_queue.isNotEmpty == true) {
         /// Showing the ad
-        _queue.removeFirst().show(onUserEarnedReward: onUserEarnedReward);
+        _queue.removeFirst().show(onUserEarnedReward: (_, __) => callback?.call());
 
         /// Updating the public count of how many ads are
         /// currently available in the queue
         adsInQueue = _queue.length;
 
         /// Reloading the queue
-        _addRewardedAd();
+        _addRewardedAd(callback: callback);
       }
+    } else {
+      callback?.call();
     }
   }
 
   /// Adds another rewarded ad to the internal managed queue,
   /// provided it does not exceed [_rewardedAdInitializer.count] elements
   /// in the queue
-  Future<void> _addRewardedAd() async {
+  Future<void> _addRewardedAd({void Function()? callback}) async {
     /// Configuring the callbacks for the ad, and combining them with the user
     /// provided ones
-    final FullScreenContentCallback<RewardedAd> fullScreenContentCallback =
-        FullScreenContentCallback<RewardedAd>(
-      onAdShowedFullScreenContent: _rewardedAdInitializer
-          .fullScreenContentCallback?.onAdShowedFullScreenContent,
-      onAdClicked:
-          _rewardedAdInitializer.fullScreenContentCallback?.onAdClicked,
-      onAdImpression:
-          _rewardedAdInitializer.fullScreenContentCallback?.onAdImpression,
-      onAdWillDismissFullScreenContent: _rewardedAdInitializer
-          .fullScreenContentCallback?.onAdWillDismissFullScreenContent,
+    final FullScreenContentCallback<RewardedAd> fullScreenContentCallback = FullScreenContentCallback<RewardedAd>(
+      onAdShowedFullScreenContent: _rewardedAdInitializer.fullScreenContentCallback?.onAdShowedFullScreenContent,
+      onAdClicked: _rewardedAdInitializer.fullScreenContentCallback?.onAdClicked,
+      onAdImpression: _rewardedAdInitializer.fullScreenContentCallback?.onAdImpression,
+      onAdWillDismissFullScreenContent: _rewardedAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent,
       onAdDismissedFullScreenContent: (RewardedAd ad) {
         /// Calling the user provided function
-        _rewardedAdInitializer
-            .fullScreenContentCallback?.onAdDismissedFullScreenContent
-            ?.call(ad);
+        _rewardedAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
+        callback?.call();
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
@@ -142,9 +131,8 @@ class ManagedRewardedAdQueue {
       },
       onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) async {
         /// Calling the user provided function
-        _rewardedAdInitializer
-            .fullScreenContentCallback?.onAdFailedToShowFullScreenContent
-            ?.call(ad, error);
+        _rewardedAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
+        callback?.call();
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
@@ -185,8 +173,7 @@ class ManagedRewardedAdQueue {
           },
           onAdFailedToLoad: (LoadAdError error) async {
             /// Calling the user provided function
-            _rewardedAdInitializer.rewardedAdLoadCallback
-                ?.onAdFailedToLoad(error);
+            _rewardedAdInitializer.rewardedAdLoadCallback?.onAdFailedToLoad(error);
 
             /// Retrying the load on fail, via recursion, up to 3 times before cancelling
             _retryLoadCount += 1;
@@ -230,8 +217,7 @@ class ManagedRewardedAdQueue {
     /// Removing this instance of [ManagedRewardedAdQueue] from the internal
     /// list of instantiated [ManagedRewardedAdQueue] maintained by
     /// [MobileAdsManager.instance._managedRewardedAdQueueList]
-    MobileAdsManager.instance._managedRewardedAdQueueList
-        .removeWhere((ManagedRewardedAdQueue queue) {
+    MobileAdsManager.instance._managedRewardedAdQueueList.removeWhere((ManagedRewardedAdQueue queue) {
       /// Matching Ad Unit Ids to determine which queue to remove, as there
       /// can only be one queue per Ad Unit Id
       return queue.adUnitId == adUnitId;
