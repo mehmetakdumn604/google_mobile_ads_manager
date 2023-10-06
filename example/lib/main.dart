@@ -90,7 +90,7 @@ class RewardedExample extends StatelessWidget {
               MobileAdsManager.instance
                   .getManagedRewardedAdQueue(adUnitId: '<Ad Unit ID>')
                   ?.showRewardedAd(
-                onUserEarnedReward: (AdWithoutView ad, RewardItem reward) {
+                callback: () {
                   // Reward user
                 },
               );

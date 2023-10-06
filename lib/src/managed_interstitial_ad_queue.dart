@@ -62,10 +62,7 @@ class ManagedInterstitialAdQueue {
   Future<void> _initializeInterstitialAdQueue() async {
     try {
       await Future.wait(
-        <Future>[
-          for (int i = 0; i <= _interstitialAdInitializer.count; i++)
-            _addInterstitialAd()
-        ],
+        <Future>[for (int i = 0; i <= _interstitialAdInitializer.count; i++) _addInterstitialAd()],
       );
     } catch (e) {
       /// Rethrowing the error, to be caught by an enclosing try-catch block
@@ -77,7 +74,7 @@ class ManagedInterstitialAdQueue {
   /// Shows an interstitial ad, based on the [showChance], automatically
   /// reloading the queue after the ad is shown, or doing nothing at all
   /// if the ad is not shown (due to [showChance])
-  void showInterstitialAd({double showChance = 1.0}) {
+  void showInterstitialAd({double showChance = 1.0, void Function()? callback}) {
     assert(
       showChance >= 0.0 && showChance <= 1.0,
       'showChance must be a double between 0.0 and 1.0, both inclusive',
@@ -99,32 +96,28 @@ class ManagedInterstitialAdQueue {
         adsInQueue = _queue.length;
 
         /// Reloading the queue
-        _addInterstitialAd();
+        _addInterstitialAd(callback: callback);
       }
+    } else {
+      callback?.call();
     }
   }
 
   /// Adds another interstitial ad to the internal managed queue,
   /// provided it does not exceed [_interstitialAdInitializer.count] elements
   /// in the queue
-  Future<void> _addInterstitialAd() async {
+  Future<void> _addInterstitialAd({void Function()? callback}) async {
     /// Configuring the callbacks for the ad, and combining them with the user
     /// provided ones
-    final FullScreenContentCallback<InterstitialAd> fullScreenContentCallback =
-        FullScreenContentCallback<InterstitialAd>(
-      onAdShowedFullScreenContent: _interstitialAdInitializer
-          .fullScreenContentCallback?.onAdShowedFullScreenContent,
-      onAdClicked:
-          _interstitialAdInitializer.fullScreenContentCallback?.onAdClicked,
-      onAdImpression:
-          _interstitialAdInitializer.fullScreenContentCallback?.onAdImpression,
-      onAdWillDismissFullScreenContent: _interstitialAdInitializer
-          .fullScreenContentCallback?.onAdWillDismissFullScreenContent,
+    final FullScreenContentCallback<InterstitialAd> fullScreenContentCallback = FullScreenContentCallback<InterstitialAd>(
+      onAdShowedFullScreenContent: _interstitialAdInitializer.fullScreenContentCallback?.onAdShowedFullScreenContent,
+      onAdClicked: _interstitialAdInitializer.fullScreenContentCallback?.onAdClicked,
+      onAdImpression: _interstitialAdInitializer.fullScreenContentCallback?.onAdImpression,
+      onAdWillDismissFullScreenContent: _interstitialAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent,
       onAdDismissedFullScreenContent: (InterstitialAd ad) {
         /// Calling the user provided function
-        _interstitialAdInitializer
-            .fullScreenContentCallback?.onAdDismissedFullScreenContent
-            ?.call(ad);
+        _interstitialAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
+        callback?.call();
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
@@ -133,12 +126,10 @@ class ManagedInterstitialAdQueue {
           ad.dispose();
         } catch (_) {}
       },
-      onAdFailedToShowFullScreenContent:
-          (InterstitialAd ad, AdError error) async {
+      onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) async {
         /// Calling the user provided function
-        _interstitialAdInitializer
-            .fullScreenContentCallback?.onAdFailedToShowFullScreenContent
-            ?.call(ad, error);
+        _interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
+        callback?.call();
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
@@ -170,8 +161,7 @@ class ManagedInterstitialAdQueue {
               adsInQueue = _queue.length;
 
               /// Calling the user provided function
-              _interstitialAdInitializer.interstitialAdLoadCallback
-                  ?.onAdLoaded(ad);
+              _interstitialAdInitializer.interstitialAdLoadCallback?.onAdLoaded(ad);
             } else {
               /// Disposing the ad as it was an excess, probably a result
               /// of showing and requesting ad loads in rapid succession.
@@ -180,8 +170,7 @@ class ManagedInterstitialAdQueue {
           },
           onAdFailedToLoad: (LoadAdError error) async {
             /// Calling the user provided function
-            _interstitialAdInitializer.interstitialAdLoadCallback
-                ?.onAdFailedToLoad(error);
+            _interstitialAdInitializer.interstitialAdLoadCallback?.onAdFailedToLoad(error);
 
             /// Retrying the load on fail, via recursion, up to 3 times before cancelling
             _retryLoadCount += 1;
@@ -225,8 +214,7 @@ class ManagedInterstitialAdQueue {
     /// Removing this instance of [ManagedInterstitialAdQueue] from the internal
     /// list of instantiated [ManagedInterstitialAdQueue] maintained by
     /// [MobileAdsManager.instance._managedInterstitialAdQueueList]
-    MobileAdsManager.instance._managedInterstitialAdQueueList
-        .removeWhere((ManagedInterstitialAdQueue queue) {
+    MobileAdsManager.instance._managedInterstitialAdQueueList.removeWhere((ManagedInterstitialAdQueue queue) {
       /// Matching Ad Unit Ids to determine which queue to remove, as there
       /// can only be one queue per Ad Unit Id
       return queue.adUnitId == adUnitId;
