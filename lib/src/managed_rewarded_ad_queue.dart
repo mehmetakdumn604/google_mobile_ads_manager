@@ -99,7 +99,7 @@ class ManagedRewardedAdQueue {
         adsInQueue = _queue.length;
 
         /// Reloading the queue
-        _addRewardedAd(callback: callback);
+        _addRewardedAd();
       }
     } else {
       callback?.call();
@@ -109,7 +109,7 @@ class ManagedRewardedAdQueue {
   /// Adds another rewarded ad to the internal managed queue,
   /// provided it does not exceed [_rewardedAdInitializer.count] elements
   /// in the queue
-  Future<void> _addRewardedAd({void Function()? callback}) async {
+  Future<void> _addRewardedAd() async {
     /// Configuring the callbacks for the ad, and combining them with the user
     /// provided ones
     final FullScreenContentCallback<RewardedAd> fullScreenContentCallback = FullScreenContentCallback<RewardedAd>(
@@ -120,7 +120,7 @@ class ManagedRewardedAdQueue {
       onAdDismissedFullScreenContent: (RewardedAd ad) {
         /// Calling the user provided function
         _rewardedAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
-        callback?.call();
+   
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
@@ -132,8 +132,6 @@ class ManagedRewardedAdQueue {
       onAdFailedToShowFullScreenContent: (RewardedAd ad, AdError error) async {
         /// Calling the user provided function
         _rewardedAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
-        callback?.call();
-
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
         /// in [_rewardedAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent]

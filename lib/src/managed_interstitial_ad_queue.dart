@@ -74,7 +74,7 @@ class ManagedInterstitialAdQueue {
   /// Shows an interstitial ad, based on the [showChance], automatically
   /// reloading the queue after the ad is shown, or doing nothing at all
   /// if the ad is not shown (due to [showChance])
-  void showInterstitialAd({double showChance = 1.0, void Function()? callback}) {
+  void showInterstitialAd({double showChance = 1.0,  void Function()? callback}) {
     assert(
       showChance >= 0.0 && showChance <= 1.0,
       'showChance must be a double between 0.0 and 1.0, both inclusive',
@@ -89,6 +89,41 @@ class ManagedInterstitialAdQueue {
       /// exhausted before refills are completed
       if (_queue.isNotEmpty == true) {
         /// Showing the ad
+        _queue.first.fullScreenContentCallback = FullScreenContentCallback<InterstitialAd>(
+          onAdShowedFullScreenContent: _interstitialAdInitializer.fullScreenContentCallback?.onAdShowedFullScreenContent,
+          onAdClicked: _interstitialAdInitializer.fullScreenContentCallback?.onAdClicked,
+          onAdImpression: _interstitialAdInitializer.fullScreenContentCallback?.onAdImpression,
+          onAdWillDismissFullScreenContent: (InterstitialAd ad) {
+            callback?.call();
+
+            _interstitialAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent?.call(ad);
+          },
+          onAdDismissedFullScreenContent: (InterstitialAd ad) {
+            /// Calling the user provided function
+            _interstitialAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
+            callback?.call();
+
+            /// Disposing the ad. The code is inside a try block to guard
+            /// against developers who accidentally include a call to .dispose()
+            /// in their code
+            try {
+              ad.dispose();
+            } catch (_) {}
+          },
+          onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) async {
+            /// Calling the user provided function
+            _interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
+            callback?.call();
+
+            /// Disposing the ad. The code is inside a try block to guard
+            /// against developers who accidentally include a call to .dispose()
+            /// in [_interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent]
+            try {
+              ad.dispose();
+            } catch (_) {}
+          },
+        );
+
         _queue.removeFirst().show();
 
         /// Updating the public count of how many ads are
@@ -96,7 +131,7 @@ class ManagedInterstitialAdQueue {
         adsInQueue = _queue.length;
 
         /// Reloading the queue
-        _addInterstitialAd(callback: callback);
+        _addInterstitialAd();
       }
     } else {
       callback?.call();
@@ -106,19 +141,19 @@ class ManagedInterstitialAdQueue {
   /// Adds another interstitial ad to the internal managed queue,
   /// provided it does not exceed [_interstitialAdInitializer.count] elements
   /// in the queue
-  Future<void> _addInterstitialAd({void Function()? callback}) async {
+  Future<void> _addInterstitialAd() async {
     /// Configuring the callbacks for the ad, and combining them with the user
     /// provided ones
     final FullScreenContentCallback<InterstitialAd> fullScreenContentCallback = FullScreenContentCallback<InterstitialAd>(
       onAdShowedFullScreenContent: _interstitialAdInitializer.fullScreenContentCallback?.onAdShowedFullScreenContent,
       onAdClicked: _interstitialAdInitializer.fullScreenContentCallback?.onAdClicked,
       onAdImpression: _interstitialAdInitializer.fullScreenContentCallback?.onAdImpression,
-      onAdWillDismissFullScreenContent: _interstitialAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent,
+      onAdWillDismissFullScreenContent: (InterstitialAd ad) {
+        _interstitialAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent?.call(ad);
+      },
       onAdDismissedFullScreenContent: (InterstitialAd ad) {
         /// Calling the user provided function
         _interstitialAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
-        callback?.call();
-
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
         /// in their code
@@ -129,7 +164,7 @@ class ManagedInterstitialAdQueue {
       onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) async {
         /// Calling the user provided function
         _interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
-        callback?.call();
+
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
