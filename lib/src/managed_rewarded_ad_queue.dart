@@ -101,6 +101,9 @@ class ManagedRewardedAdQueue {
         /// Reloading the queue
         _addRewardedAd();
       }
+      else {
+        callback?.call();
+      }
     } else {
       callback?.call();
     }

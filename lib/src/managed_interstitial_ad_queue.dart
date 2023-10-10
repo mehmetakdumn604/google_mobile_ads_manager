@@ -133,6 +133,9 @@ class ManagedInterstitialAdQueue {
         /// Reloading the queue
         _addInterstitialAd();
       }
+      else {
+        callback?.call();
+      }
     } else {
       callback?.call();
     }
