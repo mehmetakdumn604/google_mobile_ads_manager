@@ -74,7 +74,7 @@ class ManagedInterstitialAdQueue {
   /// Shows an interstitial ad, based on the [showChance], automatically
   /// reloading the queue after the ad is shown, or doing nothing at all
   /// if the ad is not shown (due to [showChance])
-  void showInterstitialAd({double showChance = 1.0,  void Function()? callback}) {
+  void showInterstitialAd({double showChance = 1.0,  void Function(bool hasError)? callback}) {
     assert(
       showChance >= 0.0 && showChance <= 1.0,
       'showChance must be a double between 0.0 and 1.0, both inclusive',
@@ -94,14 +94,14 @@ class ManagedInterstitialAdQueue {
           onAdClicked: _interstitialAdInitializer.fullScreenContentCallback?.onAdClicked,
           onAdImpression: _interstitialAdInitializer.fullScreenContentCallback?.onAdImpression,
           onAdWillDismissFullScreenContent: (InterstitialAd ad) {
-            callback?.call();
+            callback?.call(false);
 
             _interstitialAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent?.call(ad);
           },
           onAdDismissedFullScreenContent: (InterstitialAd ad) {
             /// Calling the user provided function
             _interstitialAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
-            callback?.call();
+            callback?.call(false);
 
             /// Disposing the ad. The code is inside a try block to guard
             /// against developers who accidentally include a call to .dispose()
@@ -113,7 +113,7 @@ class ManagedInterstitialAdQueue {
           onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) async {
             /// Calling the user provided function
             _interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
-            callback?.call();
+            callback?.call(true);
 
             /// Disposing the ad. The code is inside a try block to guard
             /// against developers who accidentally include a call to .dispose()
@@ -134,10 +134,10 @@ class ManagedInterstitialAdQueue {
         _addInterstitialAd();
       }
       else {
-        callback?.call();
+        callback?.call(true);
       }
     } else {
-      callback?.call();
+      callback?.call(true);
     }
   }
 

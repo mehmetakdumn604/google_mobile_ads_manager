@@ -76,7 +76,7 @@ class ManagedRewardedAdQueue {
   /// if the ad is not shown (due to [showChance])
   void showRewardedAd({
     double showChance = 1.0,
-    void Function()? callback,
+    void Function(bool hasError)? callback,
   }) {
     assert(
       showChance >= 0.0 && showChance <= 1.0,
@@ -92,7 +92,7 @@ class ManagedRewardedAdQueue {
       /// exhausted before refills are completed
       if (_queue.isNotEmpty == true) {
         /// Showing the ad
-        _queue.removeFirst().show(onUserEarnedReward: (_, __) => callback?.call());
+        _queue.removeFirst().show(onUserEarnedReward: (_, __) => callback?.call(false));
 
         /// Updating the public count of how many ads are
         /// currently available in the queue
@@ -102,10 +102,10 @@ class ManagedRewardedAdQueue {
         _addRewardedAd();
       }
       else {
-        callback?.call();
+        callback?.call(true);
       }
     } else {
-      callback?.call();
+      callback?.call(true);
     }
   }
 
