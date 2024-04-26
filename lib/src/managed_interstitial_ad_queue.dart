@@ -32,11 +32,12 @@ class InterstitialAdInitializer {
 
 /// The fully managed queue of [InterstitialAd]s
 class ManagedInterstitialAdQueue {
-  ManagedInterstitialAdQueue(this._interstitialAdInitializer)
+  ManagedInterstitialAdQueue(this._interstitialAdInitializer, {this.frequencySeconds = 60})
       : adUnitId = _interstitialAdInitializer.adUnitId,
         maxAdsInQueue = _interstitialAdInitializer.count,
         adsInQueue = 0,
         _retryLoadCount = 0;
+
 
   /// The config information for which interstitial ad to manage
   final InterstitialAdInitializer _interstitialAdInitializer;
@@ -58,6 +59,11 @@ class ManagedInterstitialAdQueue {
   /// The queue that holds the loaded interstitial ads, once initialized.
   final Queue<InterstitialAd> _queue = Queue<InterstitialAd>();
 
+  /// frequency of showing ads
+  final int frequencySeconds;
+
+  DateTime lastShowedAdTime = DateTime.now();
+
   /// Initializes the [ManagedInterstitialAdQueue]
   Future<void> _initializeInterstitialAdQueue() async {
     try {
@@ -74,14 +80,20 @@ class ManagedInterstitialAdQueue {
   /// Shows an interstitial ad, based on the [showChance], automatically
   /// reloading the queue after the ad is shown, or doing nothing at all
   /// if the ad is not shown (due to [showChance])
-  void showInterstitialAd({double showChance = 1.0,  void Function(bool hasError)? callback}) {
+  void showInterstitialAd({double showChance = 1.0, void Function(bool hasError)? callback}) {
     assert(
       showChance >= 0.0 && showChance <= 1.0,
       'showChance must be a double between 0.0 and 1.0, both inclusive',
     );
-
+    
+    if (lastShowedAdTime.difference(DateTime.now()).inSeconds < frequencySeconds) {
+      callback?.call(false);
+      return;
+    }
     /// Determining whether to show the ad, based on showChance
     final bool showAd = determineSuccess(successChance: showChance);
+
+    lastShowedAdTime = DateTime.now();
 
     if (showAd == true) {
       /// Guarding against trying to show when the queue is empty, which will only
@@ -97,11 +109,13 @@ class ManagedInterstitialAdQueue {
             callback?.call(false);
 
             _interstitialAdInitializer.fullScreenContentCallback?.onAdWillDismissFullScreenContent?.call(ad);
+            logMessage('Interstitial Ad Will Dismiss Full Screen Content');
           },
           onAdDismissedFullScreenContent: (InterstitialAd ad) {
             /// Calling the user provided function
             _interstitialAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
             callback?.call(false);
+            logMessage('Interstitial Ad Dismissed Full Screen Content');
 
             /// Disposing the ad. The code is inside a try block to guard
             /// against developers who accidentally include a call to .dispose()
@@ -114,6 +128,7 @@ class ManagedInterstitialAdQueue {
             /// Calling the user provided function
             _interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
             callback?.call(true);
+            logMessage('Interstitial Ad(${ad.adUnitId}) Failed: $error');
 
             /// Disposing the ad. The code is inside a try block to guard
             /// against developers who accidentally include a call to .dispose()
@@ -132,12 +147,13 @@ class ManagedInterstitialAdQueue {
 
         /// Reloading the queue
         _addInterstitialAd();
-      }
-      else {
+      } else {
         callback?.call(true);
+        logMessage('Interstitial Ad Queue is empty, so called callback with true');
       }
     } else {
       callback?.call(true);
+      logMessage('Interstitial Ad not shown, so called callback with true');
     }
   }
 
@@ -157,6 +173,7 @@ class ManagedInterstitialAdQueue {
       onAdDismissedFullScreenContent: (InterstitialAd ad) {
         /// Calling the user provided function
         _interstitialAdInitializer.fullScreenContentCallback?.onAdDismissedFullScreenContent?.call(ad);
+
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()
         /// in their code
@@ -167,7 +184,7 @@ class ManagedInterstitialAdQueue {
       onAdFailedToShowFullScreenContent: (InterstitialAd ad, AdError error) async {
         /// Calling the user provided function
         _interstitialAdInitializer.fullScreenContentCallback?.onAdFailedToShowFullScreenContent?.call(ad, error);
-
+        logMessage('Interstitial Ad(${ad.adUnitId}) Failed: $error');
 
         /// Disposing the ad. The code is inside a try block to guard
         /// against developers who accidentally include a call to .dispose()

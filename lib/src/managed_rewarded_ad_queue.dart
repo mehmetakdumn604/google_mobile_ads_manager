@@ -32,7 +32,7 @@ class RewardedAdInitializer {
 
 /// The fully managed queue of [RewardedAd]s
 class ManagedRewardedAdQueue {
-  ManagedRewardedAdQueue(this._rewardedAdInitializer)
+  ManagedRewardedAdQueue(this._rewardedAdInitializer, {this.frequencySeconds = 60})
       : adUnitId = _rewardedAdInitializer.adUnitId,
         maxAdsInQueue = _rewardedAdInitializer.count,
         adsInQueue = 0,
@@ -58,6 +58,10 @@ class ManagedRewardedAdQueue {
   /// The queue that holds the loaded rewarded ads, once initialized.
   final Queue<RewardedAd> _queue = Queue<RewardedAd>();
 
+  final int frequencySeconds;
+
+  DateTime? lastShowedAdTime;
+
   /// Initializes the [ManagedRewardedAdQueue]
   Future<void> _initializeRewardedAdQueue() async {
     try {
@@ -82,6 +86,12 @@ class ManagedRewardedAdQueue {
       showChance >= 0.0 && showChance <= 1.0,
       'showChance must be a double between 0.0 and 1.0, both inclusive',
     );
+    if (lastShowedAdTime != null && lastShowedAdTime!.difference(DateTime.now()).inSeconds < frequencySeconds) {
+      callback?.call(false);
+      logMessage('Ad not shown, frequencySeconds not elapsed');
+      return;
+    }
+    lastShowedAdTime = DateTime.now();
 
     /// Determining whether to show the ad, based on showChance
     final bool showAd = determineSuccess(successChance: showChance);

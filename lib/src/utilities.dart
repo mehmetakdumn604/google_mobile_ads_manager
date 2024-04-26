@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:math' as math;
 
 /// Helper function handling randomly showing or not showing ads
@@ -16,4 +17,9 @@ bool determineSuccess({required double successChance}) {
     /// Don't show ad
     return false;
   }
+}
+
+
+void logMessage(String message) {
+  log(message, name: "ADMANAGER");
 }
